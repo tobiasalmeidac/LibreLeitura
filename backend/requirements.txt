@@ -1,0 +1,13 @@
+# Dependências de produção (instaladas também pelo Elastic Beanstalk no deploy)
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0.30,<2.1
+alembic>=1.13
+psycopg[binary]>=3.2
+pydantic[email]>=2.7
+pydantic-settings>=2.3
+argon2-cffi>=23.1
+PyJWT>=2.9
+cryptography>=42
+boto3>=1.34
+tzdata>=2024.1

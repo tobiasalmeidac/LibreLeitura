@@ -1,0 +1,4 @@
+# Scripts executados no Linux da AWS precisam de fim de linha LF (não CRLF do Windows)
+*.sh text eol=lf
+Procfile text eol=lf
+*.config text eol=lf

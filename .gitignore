@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Segredos e configurações locais
+.env
+
+# Elastic Beanstalk CLI (mantém só a configuração compartilhável)
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+# Arquivos que o "eb deploy" NÃO envia para a AWS
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+docker-compose.yml
