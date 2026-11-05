@@ -1,0 +1,3620 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LibreLeitura API",
+    "description": "Cadastro de livros e leitores, empréstimos, devoluções e alertas de pendências.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Login",
+        "description": "Login de gestores e leitores. Use o access_token no header: Authorization: Bearer <token>.",
+        "operationId": "login_api_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Refresh",
+        "description": "Gera um novo access token a partir do cookie de sessão (chamar quando o token expirar).",
+        "operationId": "refresh_api_auth_refresh_post",
+        "parameters": [
+          {
+            "name": "libreleitura_refresh",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Libreleitura Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Logout",
+        "description": "Encerra a sessão: invalida o refresh token e apaga o cookie.",
+        "operationId": "logout_api_auth_logout_post",
+        "parameters": [
+          {
+            "name": "libreleitura_refresh",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Libreleitura Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/usuarios/me": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Meus Dados",
+        "description": "Dados do usuário logado (o frontend usa para saber o papel e montar o menu).",
+        "operationId": "meus_dados_api_usuarios_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioSaida"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/usuarios/me/senha": {
+      "put": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Trocar Minha Senha",
+        "description": "Troca a própria senha.",
+        "operationId": "trocar_minha_senha_api_usuarios_me_senha_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrocarSenha"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/usuarios": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Listar Gestores",
+        "operationId": "listar_gestores_api_usuarios_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Limite"
+            },
+            "description": "Itens por página"
+          },
+          {
+            "name": "deslocamento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantos itens pular",
+              "default": 0,
+              "title": "Deslocamento"
+            },
+            "description": "Quantos itens pular"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_UsuarioSaida_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Criar Gestor",
+        "description": "Cadastra outro membro da equipe com papel GESTOR.",
+        "operationId": "criar_gestor_api_usuarios_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioCriar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/usuarios/{usuario_id}": {
+      "patch": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Atualizar Gestor",
+        "description": "Altera nome, e-mail ou ativa/desativa um gestor.",
+        "operationId": "atualizar_gestor_api_usuarios__usuario_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "usuario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Usuario Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsuarioAtualizar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leitores": {
+      "get": {
+        "tags": [
+          "Leitores"
+        ],
+        "summary": "Listar",
+        "description": "Lista/busca leitores (usado também no autocomplete do balcão de empréstimo).",
+        "operationId": "listar_api_leitores_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nome, e-mail ou documento completo",
+              "title": "Q"
+            },
+            "description": "Nome, e-mail ou documento completo"
+          },
+          {
+            "name": "ativo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ativo"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Limite"
+            },
+            "description": "Itens por página"
+          },
+          {
+            "name": "deslocamento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantos itens pular",
+              "default": 0,
+              "title": "Deslocamento"
+            },
+            "description": "Quantos itens pular"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_LeitorSaida_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Leitores"
+        ],
+        "summary": "Criar",
+        "operationId": "criar_api_leitores_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeitorCriar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeitorSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leitores/{leitor_id}": {
+      "get": {
+        "tags": [
+          "Leitores"
+        ],
+        "summary": "Obter",
+        "operationId": "obter_api_leitores__leitor_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "leitor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Leitor Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeitorSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Leitores"
+        ],
+        "summary": "Atualizar",
+        "operationId": "atualizar_api_leitores__leitor_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "leitor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Leitor Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LeitorAtualizar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeitorSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Leitores"
+        ],
+        "summary": "Excluir",
+        "description": "Exclui o leitor. Se ele tiver histórico de empréstimos, os dados pessoais são anonimizados.",
+        "operationId": "excluir_api_leitores__leitor_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "leitor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Leitor Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/leitores/{leitor_id}/acesso": {
+      "post": {
+        "tags": [
+          "Leitores"
+        ],
+        "summary": "Criar Acesso",
+        "description": "Cria o login do leitor (papel LEITOR).",
+        "operationId": "criar_acesso_api_leitores__leitor_id__acesso_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "leitor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Leitor Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CriarAcessoLeitor"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeitorSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/livros": {
+      "get": {
+        "tags": [
+          "Acervo - Livros"
+        ],
+        "summary": "Buscar Livros",
+        "description": "Catálogo público (não precisa de login).",
+        "operationId": "buscar_livros_api_livros_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Trecho do título, ISBN, autor ou categoria",
+              "title": "Q"
+            },
+            "description": "Trecho do título, ISBN, autor ou categoria"
+          },
+          {
+            "name": "categoria_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categoria Id"
+            }
+          },
+          {
+            "name": "autor_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Autor Id"
+            }
+          },
+          {
+            "name": "somente_disponiveis",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Somente Disponiveis"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Limite"
+            },
+            "description": "Itens por página"
+          },
+          {
+            "name": "deslocamento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantos itens pular",
+              "default": 0,
+              "title": "Deslocamento"
+            },
+            "description": "Quantos itens pular"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_LivroResumo_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Acervo - Livros"
+        ],
+        "summary": "Criar Livro",
+        "operationId": "criar_livro_api_livros_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LivroCriar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivroDetalhe"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/livros/{livro_id}": {
+      "get": {
+        "tags": [
+          "Acervo - Livros"
+        ],
+        "summary": "Detalhar Livro",
+        "description": "Detalhe público do livro, com a situação de cada exemplar.",
+        "operationId": "detalhar_livro_api_livros__livro_id__get",
+        "parameters": [
+          {
+            "name": "livro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Livro Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivroDetalhe"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Acervo - Livros"
+        ],
+        "summary": "Atualizar Livro",
+        "operationId": "atualizar_livro_api_livros__livro_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "livro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Livro Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LivroAtualizar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivroDetalhe"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Acervo - Livros"
+        ],
+        "summary": "Excluir Livro",
+        "operationId": "excluir_livro_api_livros__livro_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "livro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Livro Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/livros/{livro_id}/exemplares": {
+      "post": {
+        "tags": [
+          "Acervo - Livros"
+        ],
+        "summary": "Adicionar Exemplares",
+        "description": "Acrescenta novas cópias físicas a um livro já cadastrado.",
+        "operationId": "adicionar_exemplares_api_livros__livro_id__exemplares_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "livro_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Livro Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdicionarExemplares"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LivroDetalhe"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exemplares": {
+      "get": {
+        "tags": [
+          "Acervo - Exemplares"
+        ],
+        "summary": "Listar Exemplares",
+        "description": "Busca de exemplares para o balcão (código de barras ou título).",
+        "operationId": "listar_exemplares_api_exemplares_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Código do exemplar ou trecho do título",
+              "title": "Q"
+            },
+            "description": "Código do exemplar ou trecho do título"
+          },
+          {
+            "name": "somente_disponiveis",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Somente Disponiveis"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Limite"
+            },
+            "description": "Itens por página"
+          },
+          {
+            "name": "deslocamento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantos itens pular",
+              "default": 0,
+              "title": "Deslocamento"
+            },
+            "description": "Quantos itens pular"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_ExemplarComLivro_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exemplares/{exemplar_id}": {
+      "patch": {
+        "tags": [
+          "Acervo - Exemplares"
+        ],
+        "summary": "Atualizar Exemplar",
+        "operationId": "atualizar_exemplar_api_exemplares__exemplar_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "exemplar_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Exemplar Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExemplarAtualizar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExemplarComLivro"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/autores": {
+      "get": {
+        "tags": [
+          "Acervo - Autores"
+        ],
+        "summary": "Listar Autores",
+        "operationId": "listar_autores_api_autores_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Limite"
+            },
+            "description": "Itens por página"
+          },
+          {
+            "name": "deslocamento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantos itens pular",
+              "default": 0,
+              "title": "Deslocamento"
+            },
+            "description": "Quantos itens pular"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_AutorSaida_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Acervo - Autores"
+        ],
+        "summary": "Criar Autor",
+        "operationId": "criar_autor_api_autores_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutorEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutorSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/autores/{autor_id}": {
+      "put": {
+        "tags": [
+          "Acervo - Autores"
+        ],
+        "summary": "Atualizar Autor",
+        "operationId": "atualizar_autor_api_autores__autor_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "autor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Autor Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutorEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutorSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Acervo - Autores"
+        ],
+        "summary": "Excluir Autor",
+        "operationId": "excluir_autor_api_autores__autor_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "autor_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Autor Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categorias": {
+      "get": {
+        "tags": [
+          "Acervo - Categorias"
+        ],
+        "summary": "Listar Categorias",
+        "operationId": "listar_categorias_api_categorias_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoriaSaida"
+                  },
+                  "type": "array",
+                  "title": "Response Listar Categorias Api Categorias Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Acervo - Categorias"
+        ],
+        "summary": "Criar Categoria",
+        "operationId": "criar_categoria_api_categorias_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoriaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoriaSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/categorias/{categoria_id}": {
+      "put": {
+        "tags": [
+          "Acervo - Categorias"
+        ],
+        "summary": "Atualizar Categoria",
+        "operationId": "atualizar_categoria_api_categorias__categoria_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "categoria_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Categoria Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoriaEntrada"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoriaSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Acervo - Categorias"
+        ],
+        "summary": "Excluir Categoria",
+        "operationId": "excluir_categoria_api_categorias__categoria_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "categoria_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Categoria Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/emprestimos": {
+      "post": {
+        "tags": [
+          "Circulação"
+        ],
+        "summary": "Registrar Emprestimo",
+        "description": "RF03: último clique do balcão. A data limite é calculada automaticamente se não for enviada.",
+        "operationId": "registrar_emprestimo_api_emprestimos_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmprestimoCriar"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmprestimoSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Circulação"
+        ],
+        "summary": "Listar Emprestimos",
+        "operationId": "listar_emprestimos_api_emprestimos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "situacao",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/FiltroEmprestimo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Situacao"
+            }
+          },
+          {
+            "name": "leitor_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Leitor Id"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Limite"
+            },
+            "description": "Itens por página"
+          },
+          {
+            "name": "deslocamento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantos itens pular",
+              "default": 0,
+              "title": "Deslocamento"
+            },
+            "description": "Quantos itens pular"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_EmprestimoSaida_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/devolucoes": {
+      "post": {
+        "tags": [
+          "Circulação"
+        ],
+        "summary": "Registrar Devolucao",
+        "description": "RF04: devolução pelo código do exemplar (bipado ou digitado).",
+        "operationId": "registrar_devolucao_api_devolucoes_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevolucaoCriar"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmprestimoSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/emprestimos/{emprestimo_id}/devolucao": {
+      "post": {
+        "tags": [
+          "Circulação"
+        ],
+        "summary": "Devolver Por Id",
+        "description": "RF04: devolução a partir do painel de pendências (botão na linha do empréstimo).",
+        "operationId": "devolver_por_id_api_emprestimos__emprestimo_id__devolucao_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "emprestimo_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Emprestimo Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmprestimoSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me/emprestimos": {
+      "get": {
+        "tags": [
+          "Circulação"
+        ],
+        "summary": "Meus Emprestimos",
+        "description": "Empréstimos do leitor logado, com prazos de devolução.",
+        "operationId": "meus_emprestimos_api_me_emprestimos_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "situacao",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/FiltroEmprestimo"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Situacao"
+            }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Itens por página",
+              "default": 20,
+              "title": "Limite"
+            },
+            "description": "Itens por página"
+          },
+          {
+            "name": "deslocamento",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Quantos itens pular",
+              "default": 0,
+              "title": "Deslocamento"
+            },
+            "description": "Quantos itens pular"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Pagina_EmprestimoSaida_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/alertas/pendencias": {
+      "get": {
+        "tags": [
+          "Alertas"
+        ],
+        "summary": "Pendencias",
+        "description": "RF06: empréstimos atrasados e prestes a vencer, com contato do leitor.",
+        "operationId": "pendencias_api_alertas_pendencias_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PainelPendencias"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/configuracao": {
+      "get": {
+        "tags": [
+          "Configuração"
+        ],
+        "summary": "Obter",
+        "description": "Mostra prazo padrão, limite de empréstimos e regras de bloqueio.",
+        "operationId": "obter_api_configuracao_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracaoSaida"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "patch": {
+        "tags": [
+          "Configuração"
+        ],
+        "summary": "Atualizar",
+        "description": "Altera as regras de empréstimo da biblioteca.",
+        "operationId": "atualizar_api_configuracao_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfiguracaoAtualizar"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracaoSaida"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Saúde"
+        ],
+        "summary": "Health",
+        "description": "Usado pelo ALB/Elastic Beanstalk para saber se a instância está saudável.",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdicionarExemplares": {
+        "properties": {
+          "quantidade": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Quantidade"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quantidade"
+        ],
+        "title": "AdicionarExemplares"
+      },
+      "AutorEntrada": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 2,
+            "title": "Nome"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome"
+        ],
+        "title": "AutorEntrada"
+      },
+      "AutorSaida": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome"
+        ],
+        "title": "AutorSaida"
+      },
+      "CategoriaEntrada": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 2,
+            "title": "Nome"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome"
+        ],
+        "title": "CategoriaEntrada"
+      },
+      "CategoriaSaida": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome"
+        ],
+        "title": "CategoriaSaida"
+      },
+      "ConfiguracaoAtualizar": {
+        "properties": {
+          "prazo_padrao_dias": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prazo Padrao Dias"
+          },
+          "max_emprestimos_por_leitor": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Emprestimos Por Leitor"
+          },
+          "bloquear_leitor_com_atraso": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bloquear Leitor Com Atraso"
+          },
+          "dias_aviso_vencimento": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 30.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Aviso Vencimento"
+          }
+        },
+        "type": "object",
+        "title": "ConfiguracaoAtualizar",
+        "description": "Envie apenas os campos que deseja alterar."
+      },
+      "ConfiguracaoSaida": {
+        "properties": {
+          "prazo_padrao_dias": {
+            "type": "integer",
+            "title": "Prazo Padrao Dias"
+          },
+          "max_emprestimos_por_leitor": {
+            "type": "integer",
+            "title": "Max Emprestimos Por Leitor"
+          },
+          "bloquear_leitor_com_atraso": {
+            "type": "boolean",
+            "title": "Bloquear Leitor Com Atraso"
+          },
+          "dias_aviso_vencimento": {
+            "type": "integer",
+            "title": "Dias Aviso Vencimento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prazo_padrao_dias",
+          "max_emprestimos_por_leitor",
+          "bloquear_leitor_com_atraso",
+          "dias_aviso_vencimento"
+        ],
+        "title": "ConfiguracaoSaida"
+      },
+      "CriarAcessoLeitor": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "senha": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Senha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "senha"
+        ],
+        "title": "CriarAcessoLeitor",
+        "description": "Cria o login do leitor. Se o e-mail não for enviado, usa o e-mail do cadastro."
+      },
+      "DevolucaoCriar": {
+        "properties": {
+          "codigo_exemplar": {
+            "type": "string",
+            "maxLength": 30,
+            "minLength": 1,
+            "title": "Codigo Exemplar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "codigo_exemplar"
+        ],
+        "title": "DevolucaoCriar",
+        "description": "RF04: basta o código do exemplar que está sendo devolvido."
+      },
+      "EmprestimoCriar": {
+        "properties": {
+          "leitor_id": {
+            "type": "integer",
+            "title": "Leitor Id"
+          },
+          "exemplar_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exemplar Id"
+          },
+          "codigo_exemplar": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Exemplar"
+          },
+          "data_prevista": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Prevista",
+            "description": "Se omitida, usa o prazo padrão da configuração"
+          }
+        },
+        "type": "object",
+        "required": [
+          "leitor_id"
+        ],
+        "title": "EmprestimoCriar",
+        "description": "RF03: leitor + exemplar (por id ou pelo código bipado). A data limite é opcional."
+      },
+      "EmprestimoSaida": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "leitor_id": {
+            "type": "integer",
+            "title": "Leitor Id"
+          },
+          "leitor_nome": {
+            "type": "string",
+            "title": "Leitor Nome"
+          },
+          "exemplar_id": {
+            "type": "integer",
+            "title": "Exemplar Id"
+          },
+          "exemplar_codigo": {
+            "type": "string",
+            "title": "Exemplar Codigo"
+          },
+          "livro_id": {
+            "type": "integer",
+            "title": "Livro Id"
+          },
+          "livro_titulo": {
+            "type": "string",
+            "title": "Livro Titulo"
+          },
+          "data_saida": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Saida"
+          },
+          "data_prevista": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Prevista"
+          },
+          "data_devolucao": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Devolucao"
+          },
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoEmprestimo"
+          },
+          "dias_atraso": {
+            "type": "integer",
+            "title": "Dias Atraso"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "leitor_id",
+          "leitor_nome",
+          "exemplar_id",
+          "exemplar_codigo",
+          "livro_id",
+          "livro_titulo",
+          "data_saida",
+          "data_prevista",
+          "data_devolucao",
+          "situacao",
+          "dias_atraso"
+        ],
+        "title": "EmprestimoSaida"
+      },
+      "ExemplarAtualizar": {
+        "properties": {
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoExemplar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "situacao"
+        ],
+        "title": "ExemplarAtualizar"
+      },
+      "ExemplarComLivro": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoExemplar"
+          },
+          "disponivel": {
+            "type": "boolean",
+            "title": "Disponivel"
+          },
+          "livro_id": {
+            "type": "integer",
+            "title": "Livro Id"
+          },
+          "livro_titulo": {
+            "type": "string",
+            "title": "Livro Titulo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "situacao",
+          "disponivel",
+          "livro_id",
+          "livro_titulo"
+        ],
+        "title": "ExemplarComLivro",
+        "description": "Usado no balcão: ao bipar/buscar um exemplar, mostra de qual livro ele é."
+      },
+      "ExemplarSaida": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "codigo": {
+            "type": "string",
+            "title": "Codigo"
+          },
+          "situacao": {
+            "$ref": "#/components/schemas/SituacaoExemplar"
+          },
+          "disponivel": {
+            "type": "boolean",
+            "title": "Disponivel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "codigo",
+          "situacao",
+          "disponivel"
+        ],
+        "title": "ExemplarSaida"
+      },
+      "FiltroEmprestimo": {
+        "type": "string",
+        "enum": [
+          "EM_ABERTO",
+          "ATRASADO",
+          "A_VENCER",
+          "DEVOLVIDO"
+        ],
+        "title": "FiltroEmprestimo",
+        "description": "Filtros aceitos na listagem de empréstimos."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ItemPendencia": {
+        "properties": {
+          "emprestimo_id": {
+            "type": "integer",
+            "title": "Emprestimo Id"
+          },
+          "leitor_id": {
+            "type": "integer",
+            "title": "Leitor Id"
+          },
+          "leitor_nome": {
+            "type": "string",
+            "title": "Leitor Nome"
+          },
+          "leitor_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leitor Email"
+          },
+          "leitor_telefone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Leitor Telefone"
+          },
+          "livro_titulo": {
+            "type": "string",
+            "title": "Livro Titulo"
+          },
+          "exemplar_codigo": {
+            "type": "string",
+            "title": "Exemplar Codigo"
+          },
+          "data_saida": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Saida"
+          },
+          "data_prevista": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Prevista"
+          },
+          "dias_atraso": {
+            "type": "integer",
+            "title": "Dias Atraso"
+          },
+          "dias_para_vencer": {
+            "type": "integer",
+            "title": "Dias Para Vencer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "emprestimo_id",
+          "leitor_id",
+          "leitor_nome",
+          "leitor_email",
+          "leitor_telefone",
+          "livro_titulo",
+          "exemplar_codigo",
+          "data_saida",
+          "data_prevista",
+          "dias_atraso",
+          "dias_para_vencer"
+        ],
+        "title": "ItemPendencia",
+        "description": "Uma linha do painel, com o contato do leitor para cobrança."
+      },
+      "LeitorAtualizar": {
+        "properties": {
+          "nome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "telefone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefone"
+          },
+          "documento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento"
+          },
+          "ativo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativo"
+          }
+        },
+        "type": "object",
+        "title": "LeitorAtualizar",
+        "description": "Envie apenas os campos que deseja alterar. Para apagar e-mail, telefone ou documento, envie null."
+      },
+      "LeitorCriar": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 2,
+            "title": "Nome"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "telefone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefone"
+          },
+          "documento": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 30
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento",
+            "description": "Matrícula, CPF ou outro documento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome"
+        ],
+        "title": "LeitorCriar"
+      },
+      "LeitorSaida": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "telefone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telefone"
+          },
+          "documento": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documento"
+          },
+          "ativo": {
+            "type": "boolean",
+            "title": "Ativo"
+          },
+          "possui_acesso": {
+            "type": "boolean",
+            "title": "Possui Acesso"
+          },
+          "criado_em": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Criado Em"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "email",
+          "telefone",
+          "documento",
+          "ativo",
+          "possui_acesso",
+          "criado_em"
+        ],
+        "title": "LeitorSaida"
+      },
+      "LivroAtualizar": {
+        "properties": {
+          "titulo": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titulo"
+          },
+          "isbn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isbn"
+          },
+          "editora": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editora"
+          },
+          "ano_publicacao": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2100.0,
+                "minimum": 1450.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ano Publicacao"
+          },
+          "categoria_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "autor_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array",
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Autor Ids"
+          }
+        },
+        "type": "object",
+        "title": "LivroAtualizar",
+        "description": "Envie apenas os campos que deseja alterar. Exemplares são gerenciados em rotas próprias."
+      },
+      "LivroCriar": {
+        "properties": {
+          "titulo": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Titulo"
+          },
+          "isbn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isbn"
+          },
+          "editora": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editora"
+          },
+          "ano_publicacao": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2100.0,
+                "minimum": 1450.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ano Publicacao"
+          },
+          "categoria_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "autor_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Autor Ids"
+          },
+          "quantidade_exemplares": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Quantidade Exemplares",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "titulo",
+          "autor_ids"
+        ],
+        "title": "LivroCriar",
+        "description": "RF01: dados do livro + quantidade de exemplares (cada exemplar recebe um código próprio)."
+      },
+      "LivroDetalhe": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "isbn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isbn"
+          },
+          "editora": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editora"
+          },
+          "ano_publicacao": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ano Publicacao"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoriaSaida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autores": {
+            "items": {
+              "$ref": "#/components/schemas/AutorSaida"
+            },
+            "type": "array",
+            "title": "Autores"
+          },
+          "total_exemplares": {
+            "type": "integer",
+            "title": "Total Exemplares"
+          },
+          "exemplares_disponiveis": {
+            "type": "integer",
+            "title": "Exemplares Disponiveis"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusLivro"
+          },
+          "exemplares": {
+            "items": {
+              "$ref": "#/components/schemas/ExemplarSaida"
+            },
+            "type": "array",
+            "title": "Exemplares"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "titulo",
+          "isbn",
+          "editora",
+          "ano_publicacao",
+          "categoria",
+          "autores",
+          "total_exemplares",
+          "exemplares_disponiveis",
+          "status",
+          "exemplares"
+        ],
+        "title": "LivroDetalhe"
+      },
+      "LivroResumo": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "titulo": {
+            "type": "string",
+            "title": "Titulo"
+          },
+          "isbn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isbn"
+          },
+          "editora": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Editora"
+          },
+          "ano_publicacao": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ano Publicacao"
+          },
+          "categoria": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CategoriaSaida"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "autores": {
+            "items": {
+              "$ref": "#/components/schemas/AutorSaida"
+            },
+            "type": "array",
+            "title": "Autores"
+          },
+          "total_exemplares": {
+            "type": "integer",
+            "title": "Total Exemplares"
+          },
+          "exemplares_disponiveis": {
+            "type": "integer",
+            "title": "Exemplares Disponiveis"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusLivro"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "titulo",
+          "isbn",
+          "editora",
+          "ano_publicacao",
+          "categoria",
+          "autores",
+          "total_exemplares",
+          "exemplares_disponiveis",
+          "status"
+        ],
+        "title": "LivroResumo",
+        "description": "Item do catálogo com a disponibilidade calculada."
+      },
+      "LoginEntrada": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "senha": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Senha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "senha"
+        ],
+        "title": "LoginEntrada"
+      },
+      "Pagina_AutorSaida_": {
+        "properties": {
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/AutorSaida"
+            },
+            "type": "array",
+            "title": "Itens"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limite": {
+            "type": "integer",
+            "title": "Limite"
+          },
+          "deslocamento": {
+            "type": "integer",
+            "title": "Deslocamento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itens",
+          "total",
+          "limite",
+          "deslocamento"
+        ],
+        "title": "Pagina[AutorSaida]"
+      },
+      "Pagina_EmprestimoSaida_": {
+        "properties": {
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/EmprestimoSaida"
+            },
+            "type": "array",
+            "title": "Itens"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limite": {
+            "type": "integer",
+            "title": "Limite"
+          },
+          "deslocamento": {
+            "type": "integer",
+            "title": "Deslocamento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itens",
+          "total",
+          "limite",
+          "deslocamento"
+        ],
+        "title": "Pagina[EmprestimoSaida]"
+      },
+      "Pagina_ExemplarComLivro_": {
+        "properties": {
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/ExemplarComLivro"
+            },
+            "type": "array",
+            "title": "Itens"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limite": {
+            "type": "integer",
+            "title": "Limite"
+          },
+          "deslocamento": {
+            "type": "integer",
+            "title": "Deslocamento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itens",
+          "total",
+          "limite",
+          "deslocamento"
+        ],
+        "title": "Pagina[ExemplarComLivro]"
+      },
+      "Pagina_LeitorSaida_": {
+        "properties": {
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/LeitorSaida"
+            },
+            "type": "array",
+            "title": "Itens"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limite": {
+            "type": "integer",
+            "title": "Limite"
+          },
+          "deslocamento": {
+            "type": "integer",
+            "title": "Deslocamento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itens",
+          "total",
+          "limite",
+          "deslocamento"
+        ],
+        "title": "Pagina[LeitorSaida]"
+      },
+      "Pagina_LivroResumo_": {
+        "properties": {
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/LivroResumo"
+            },
+            "type": "array",
+            "title": "Itens"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limite": {
+            "type": "integer",
+            "title": "Limite"
+          },
+          "deslocamento": {
+            "type": "integer",
+            "title": "Deslocamento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itens",
+          "total",
+          "limite",
+          "deslocamento"
+        ],
+        "title": "Pagina[LivroResumo]"
+      },
+      "Pagina_UsuarioSaida_": {
+        "properties": {
+          "itens": {
+            "items": {
+              "$ref": "#/components/schemas/UsuarioSaida"
+            },
+            "type": "array",
+            "title": "Itens"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limite": {
+            "type": "integer",
+            "title": "Limite"
+          },
+          "deslocamento": {
+            "type": "integer",
+            "title": "Deslocamento"
+          }
+        },
+        "type": "object",
+        "required": [
+          "itens",
+          "total",
+          "limite",
+          "deslocamento"
+        ],
+        "title": "Pagina[UsuarioSaida]"
+      },
+      "PainelPendencias": {
+        "properties": {
+          "data_referencia": {
+            "type": "string",
+            "format": "date",
+            "title": "Data Referencia"
+          },
+          "dias_aviso": {
+            "type": "integer",
+            "title": "Dias Aviso"
+          },
+          "resumo": {
+            "$ref": "#/components/schemas/ResumoPendencias"
+          },
+          "atrasados": {
+            "items": {
+              "$ref": "#/components/schemas/ItemPendencia"
+            },
+            "type": "array",
+            "title": "Atrasados"
+          },
+          "a_vencer": {
+            "items": {
+              "$ref": "#/components/schemas/ItemPendencia"
+            },
+            "type": "array",
+            "title": "A Vencer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data_referencia",
+          "dias_aviso",
+          "resumo",
+          "atrasados",
+          "a_vencer"
+        ],
+        "title": "PainelPendencias"
+      },
+      "Papel": {
+        "type": "string",
+        "enum": [
+          "GESTOR",
+          "LEITOR"
+        ],
+        "title": "Papel",
+        "description": "Perfis de acesso (RF07)."
+      },
+      "ResumoPendencias": {
+        "properties": {
+          "em_aberto": {
+            "type": "integer",
+            "title": "Em Aberto"
+          },
+          "atrasados": {
+            "type": "integer",
+            "title": "Atrasados"
+          },
+          "a_vencer": {
+            "type": "integer",
+            "title": "A Vencer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "em_aberto",
+          "atrasados",
+          "a_vencer"
+        ],
+        "title": "ResumoPendencias"
+      },
+      "SituacaoEmprestimo": {
+        "type": "string",
+        "enum": [
+          "EM_DIA",
+          "ATRASADO",
+          "DEVOLVIDO"
+        ],
+        "title": "SituacaoEmprestimo",
+        "description": "Situação calculada de um empréstimo."
+      },
+      "SituacaoExemplar": {
+        "type": "string",
+        "enum": [
+          "ATIVO",
+          "EXTRAVIADO",
+          "BAIXADO"
+        ],
+        "title": "SituacaoExemplar",
+        "description": "Situação física do exemplar. Se ele está emprestado ou não é calculado pelos empréstimos."
+      },
+      "StatusLivro": {
+        "type": "string",
+        "enum": [
+          "DISPONIVEL",
+          "EMPRESTADO",
+          "INDISPONIVEL"
+        ],
+        "title": "StatusLivro",
+        "description": "Status exibido no catálogo (RF05)."
+      },
+      "TokenSaida": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expira_em_segundos": {
+            "type": "integer",
+            "title": "Expira Em Segundos"
+          },
+          "usuario": {
+            "$ref": "#/components/schemas/UsuarioSaida"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expira_em_segundos",
+          "usuario"
+        ],
+        "title": "TokenSaida",
+        "description": "Resposta do login/refresh. O refresh token NÃO vem aqui: ele vai num cookie httpOnly."
+      },
+      "TrocarSenha": {
+        "properties": {
+          "senha_atual": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Senha Atual"
+          },
+          "nova_senha": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Nova Senha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "senha_atual",
+          "nova_senha"
+        ],
+        "title": "TrocarSenha"
+      },
+      "UsuarioAtualizar": {
+        "properties": {
+          "nome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 150,
+                "minLength": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nome"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "email"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "ativo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ativo"
+          }
+        },
+        "type": "object",
+        "title": "UsuarioAtualizar",
+        "description": "Envie apenas os campos que deseja alterar."
+      },
+      "UsuarioCriar": {
+        "properties": {
+          "nome": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 2,
+            "title": "Nome"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "senha": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 8,
+            "title": "Senha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nome",
+          "email",
+          "senha"
+        ],
+        "title": "UsuarioCriar",
+        "description": "Dados para criar um gestor (membro da equipe)."
+      },
+      "UsuarioSaida": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "nome": {
+            "type": "string",
+            "title": "Nome"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "papel": {
+            "$ref": "#/components/schemas/Papel"
+          },
+          "ativo": {
+            "type": "boolean",
+            "title": "Ativo"
+          },
+          "criado_em": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Criado Em"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "nome",
+          "email",
+          "papel",
+          "ativo",
+          "criado_em"
+        ],
+        "title": "UsuarioSaida",
+        "description": "O que a API devolve sobre um usuário (nunca inclui o hash da senha)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

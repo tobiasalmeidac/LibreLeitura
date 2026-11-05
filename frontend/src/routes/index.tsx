@@ -12,11 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, type Livro, type StatusDisponibilidade } from "@/lib/api";
-import { nomesDosAutores, ROTULO_STATUS, statusDoLivro } from "@/lib/dominio";
+import { api, type LivroResumo, type StatusDisponibilidade } from "@/lib/api";
+import { nomesDosAutores, ROTULO_STATUS } from "@/lib/dominio";
 
 const LIMITE = 20;
-const STATUS: StatusDisponibilidade[] = ["DISPONIVEL", "EMPRESTADO", "INDISPONIVEL"];
+// A API filtra apenas por "somente disponíveis"; os demais status são só exibidos.
 
 interface BuscaCatalogo {
   q?: string | undefined;
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): BuscaCatalogo => ({
     q: typeof s["q"] === "string" && s["q"] ? s["q"] : undefined,
     categoria: s["categoria"] != null && s["categoria"] !== "" ? String(s["categoria"]) : undefined,
-    status: STATUS.includes(s["status"] as StatusDisponibilidade) ? (s["status"] as StatusDisponibilidade) : undefined,
+    status: s["status"] === "DISPONIVEL" ? "DISPONIVEL" : undefined,
     pagina: Number(s["pagina"]) > 1 ? Math.floor(Number(s["pagina"])) : undefined,
   }),
   head: () => ({
@@ -75,8 +75,8 @@ function Catalogo() {
     queryFn: () =>
       api.livros.listar({
         busca: busca.q,
-        categoriaId: busca.categoria,
-        status: busca.status,
+        categoriaId: busca.categoria ? Number(busca.categoria) : undefined,
+        somenteDisponiveis: busca.status === "DISPONIVEL",
         limite: LIMITE,
         deslocamento,
       }),
@@ -157,11 +157,7 @@ function Catalogo() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  {STATUS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {ROTULO_STATUS[s]}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="DISPONIVEL">{ROTULO_STATUS.DISPONIVEL}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -218,7 +214,7 @@ function Catalogo() {
   );
 }
 
-function CartaoLivro({ livro }: { livro: Livro }) {
+function CartaoLivro({ livro }: { livro: LivroResumo }) {
   const autores = nomesDosAutores(livro);
   return (
     <Link
@@ -234,7 +230,7 @@ function CartaoLivro({ livro }: { livro: Livro }) {
         {autores && <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{autores}</p>}
       </div>
       <div className="shrink-0">
-        <StatusBadge status={statusDoLivro(livro)} />
+        <StatusBadge status={livro.status} />
       </div>
     </Link>
   );

@@ -8,10 +8,12 @@ import { mensagemDoErro } from "@/components/Estados";
 import { Button } from "@/components/ui/button";
 import { api, type Emprestimo } from "@/lib/api";
 import { invalidarCirculacao } from "@/lib/consultas";
-import { codigoDoEmprestimo, nomeDoLeitor, tituloDoEmprestimo } from "@/lib/dominio";
 
 /** Botão "Registrar devolução"/"Devolver" com confirmação (POST /emprestimos/{id}/devolucao). */
-export function BotaoDevolver({ emprestimo, rotulo = "Devolver" }: { emprestimo: Emprestimo; rotulo?: string }) {
+/** Recebe só os campos exibidos, para servir tanto ao painel (pendências) quanto às listas de empréstimos. */
+export type EmprestimoParaDevolver = Pick<Emprestimo, "id" | "livro_titulo" | "exemplar_codigo" | "leitor_nome">;
+
+export function BotaoDevolver({ emprestimo, rotulo = "Devolver" }: { emprestimo: EmprestimoParaDevolver; rotulo?: string }) {
   const [aberto, setAberto] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -47,10 +49,10 @@ export function BotaoDevolver({ emprestimo, rotulo = "Devolver" }: { emprestimo:
         descricao={
           <>
             <p>
-              <span className="font-medium text-foreground">{tituloDoEmprestimo(emprestimo)}</span> (
-              <span className="font-mono">{codigoDoEmprestimo(emprestimo)}</span>)
+              <span className="font-medium text-foreground">{emprestimo.livro_titulo}</span> (
+              <span className="font-mono">{emprestimo.exemplar_codigo}</span>)
             </p>
-            <p>Leitor: {nomeDoLeitor(emprestimo)}</p>
+            <p>Leitor: {emprestimo.leitor_nome}</p>
           </>
         }
         rotuloConfirmar="Confirmar devolução"

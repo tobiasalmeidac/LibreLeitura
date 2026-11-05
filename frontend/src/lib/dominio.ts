@@ -1,8 +1,9 @@
 import type {
   Emprestimo,
   Exemplar,
+  ExemplarComLivro,
   Leitor,
-  Livro,
+  LivroResumo,
   Papel,
   SituacaoEmprestimo,
   SituacaoExemplar,
@@ -26,97 +27,48 @@ export function rotaInicial(papel: Papel): "/gestor" | "/meus-emprestimos" {
   return papel === "GESTOR" ? "/gestor" : "/meus-emprestimos";
 }
 
-function exemplarDisponivel(e: Exemplar): boolean {
-  return e.situacao === "ATIVO" && e.disponivel !== false;
+export function nomesDosAutores(livro: LivroResumo): string {
+  return livro.autores.map((a) => a.nome).join(", ");
 }
 
-/** Status do livro informado pela API; se ausente, derivado dos exemplares. */
-export function statusDoLivro(livro: Livro): StatusDisponibilidade {
-  const informado = livro.status ?? livro.disponibilidade;
-  if (informado) return informado;
-  const ativos = (livro.exemplares ?? []).filter((e) => e.situacao === "ATIVO");
-  if (ativos.length === 0) return "INDISPONIVEL";
-  return ativos.some(exemplarDisponivel) ? "DISPONIVEL" : "EMPRESTADO";
+/** Dias de atraso de um empréstimo (0 se em dia ou devolvido). */
+export function diasDeAtraso(e: Emprestimo): number {
+  return e.data_devolucao ? 0 : Math.max(0, e.dias_atraso);
 }
 
-export function statusDoExemplar(e: Exemplar): StatusDisponibilidade {
-  if (e.situacao !== "ATIVO") return "INDISPONIVEL";
-  return e.disponivel === false ? "EMPRESTADO" : "DISPONIVEL";
-}
-
-export function nomesDosAutores(livro: Livro): string {
-  return (livro.autores ?? []).map((a) => a.nome).join(", ");
-}
-
-export function tituloDoEmprestimo(e: Emprestimo): string {
-  return e.exemplar?.livro?.titulo ?? e.livro?.titulo ?? e.titulo ?? "—";
-}
-
-export function codigoDoEmprestimo(e: Emprestimo): string {
-  return e.exemplar?.codigo ?? e.codigo_exemplar ?? "—";
-}
-
-/** Dias de atraso de um empréstimo em aberto (0 se em dia ou devolvido). */
-export function diasDeAtraso(e: Emprestimo, hoje: string = hojeSP()): number {
-  if (e.data_devolucao) return 0;
-  if (typeof e.dias_atraso === "number") return Math.max(0, e.dias_atraso);
-  return Math.max(0, diasEntre(diaSP(e.data_prevista), hoje));
-}
-
-/** Dias que faltam para a data prevista (negativo = atrasado). */
+/** Dias que faltam para a data prevista (negativo = atrasado), a partir da data de hoje em São Paulo. */
 export function diasParaVencer(e: Emprestimo, hoje: string = hojeSP()): number {
-  if (typeof e.dias_para_vencer === "number") return e.dias_para_vencer;
   return diasEntre(hoje, diaSP(e.data_prevista));
 }
 
 export const ROTULO_SITUACAO_EMPRESTIMO: Record<SituacaoEmprestimo, string> = {
-  EM_ABERTO: "Em aberto",
+  EM_DIA: "Em dia",
   ATRASADO: "Atrasado",
-  A_VENCER: "A vencer",
   DEVOLVIDO: "Devolvido",
 };
 
-/** Situação do empréstimo: usa a informada pela API; se ausente, deriva das datas. */
-export function situacaoDoEmprestimo(e: Emprestimo, diasAviso?: number | null, hoje: string = hojeSP()): SituacaoEmprestimo {
-  if (e.data_devolucao) return "DEVOLVIDO";
-  if (e.atrasado || diasDeAtraso(e, hoje) > 0) return "ATRASADO";
-  if (e.situacao === "A_VENCER") return "A_VENCER";
-  if (typeof diasAviso === "number" && diasParaVencer(e, hoje) <= diasAviso) return "A_VENCER";
-  return e.situacao === "ATRASADO" || e.situacao === "DEVOLVIDO" ? e.situacao : "EM_ABERTO";
+/** Empréstimo em dia que vence dentro da janela de aviso (indicador "a vencer"). */
+export function venceEmBreve(e: Emprestimo, diasAviso: number, hoje: string = hojeSP()): boolean {
+  return e.situacao === "EM_DIA" && diasParaVencer(e, hoje) <= diasAviso;
 }
 
-export function exemplarDoEmprestimoEmAberto(e: Emprestimo): boolean {
-  return !e.data_devolucao;
+export function nomeDoLeitor(l: Pick<Leitor, "nome">): string {
+  return l.nome;
 }
 
-export function nomeDoLeitor(e: Emprestimo): string {
-  return e.leitor?.nome ?? e.leitor_nome ?? "—";
+export const tituloDoEmprestimo = (e: Emprestimo): string => e.livro_titulo;
+export const codigoDoEmprestimo = (e: Emprestimo): string => e.exemplar_codigo;
+export const tituloDoExemplar = (e: ExemplarComLivro): string => e.livro_titulo;
+
+/** Status de exemplar derivado de situacao + disponivel (ambos vêm da API). */
+export function statusDoExemplar(e: Exemplar): StatusDisponibilidade {
+  if (e.situacao !== "ATIVO") return "INDISPONIVEL";
+  return e.disponivel ? "DISPONIVEL" : "EMPRESTADO";
 }
 
-export function tituloDoExemplar(e: Exemplar): string {
-  return e.livro?.titulo ?? e.titulo ?? "—";
-}
-
-export function emprestimosAtivosDoLeitor(l: Leitor): number | undefined {
-  return l.emprestimos_ativos ?? l.emprestimos_em_aberto;
-}
-
-export function leitorTemAtraso(l: Leitor): boolean | undefined {
-  return l.possui_atraso ?? l.tem_atraso;
-}
-
-export function leitorTemAcesso(l: Leitor): boolean | undefined {
-  if (typeof l.possui_acesso === "boolean") return l.possui_acesso;
-  if (typeof l.tem_acesso === "boolean") return l.tem_acesso;
-  if (l.usuario_id !== undefined) return l.usuario_id !== null;
-  return undefined;
-}
-
-/** O documento só é exibido se a API devolver uma versão mascarada. */
-export function documentoMascarado(l: Leitor): string | null {
-  if (l.documento_mascarado) return l.documento_mascarado;
-  if (l.documento && /[*•xX]{2,}/.test(l.documento)) return l.documento;
-  return null;
+/** A API já devolve o documento mascarado (ex.: "*****678"); aqui só repassamos. */
+export function documentoMascarado(l: Pick<Leitor, "documento">): string | null {
+  return l.documento ?? null;
 }
 
 /** Valida ISBN-10 ou ISBN-13 (aceita hífens e espaços). */

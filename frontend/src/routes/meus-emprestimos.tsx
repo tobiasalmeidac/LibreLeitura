@@ -65,7 +65,7 @@ function MeusEmprestimos() {
 
   const consulta = useQuery({
     queryKey: ["me", "emprestimos", deslocamento],
-    queryFn: () => api.me.emprestimos(LIMITE, deslocamento),
+    queryFn: () => api.me.emprestimos({ limite: LIMITE, deslocamento }),
     placeholderData: keepPreviousData,
   });
 
@@ -112,7 +112,7 @@ function MeusEmprestimos() {
                       <dl className="mt-3 grid grid-cols-3 gap-2 text-xs">
                         <div>
                           <dt className="text-muted-foreground">Retirada</dt>
-                          <dd className="font-medium tabular">{formatarData(e.data_retirada)}</dd>
+                          <dd className="font-medium tabular">{formatarData(e.data_saida)}</dd>
                         </div>
                         <div>
                           <dt className="text-muted-foreground">Prevista</dt>
@@ -146,7 +146,7 @@ function MeusEmprestimos() {
                       <TableRow key={String(e.id)} className={cn(diasDeAtraso(e) > 0 && "bg-danger-soft hover:bg-danger-soft")}>
                         <TableCell className="font-medium">{tituloDoEmprestimo(e)}</TableCell>
                         <TableCell className="font-mono text-xs">{codigoDoEmprestimo(e)}</TableCell>
-                        <TableCell className="tabular">{formatarData(e.data_retirada)}</TableCell>
+                        <TableCell className="tabular">{formatarData(e.data_saida)}</TableCell>
                         <TableCell className="tabular">{formatarData(e.data_prevista)}</TableCell>
                         <TableCell className="tabular">{formatarData(e.data_devolucao)}</TableCell>
                         <TableCell>

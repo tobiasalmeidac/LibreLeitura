@@ -16,14 +16,19 @@ from app.modules.usuarios.service import criar_usuario
 NOME_ANONIMIZADO = "Leitor removido"
 
 
+def mascarar_documento(documento: str) -> str:
+    """Mostra só os 3 últimos caracteres (ex.: '*****678'). Nunca devolvemos o documento inteiro."""
+    return "*" * max(len(documento) - 3, 0) + documento[-3:]
+
+
 def para_saida(leitor: Leitor) -> LeitorSaida:
-    """Converte o modelo em resposta da API, decifrando o documento."""
+    """Converte o modelo em resposta da API. O documento sai mascarado; o valor real nunca é devolvido."""
     return LeitorSaida(
         id=leitor.id,
         nome=leitor.nome,
         email=leitor.email,
         telefone=leitor.telefone,
-        documento=decifrar(leitor.documento_cifrado) if leitor.documento_cifrado else None,
+        documento=mascarar_documento(decifrar(leitor.documento_cifrado)) if leitor.documento_cifrado else None,
         ativo=leitor.ativo,
         possui_acesso=leitor.usuario_id is not None,
         criado_em=leitor.criado_em,

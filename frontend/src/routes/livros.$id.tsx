@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, CalendarClock } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 import { EstadoErro, EstadoVazio } from "@/components/Estados";
 import { LayoutPublico } from "@/components/layout/LayoutPublico";
@@ -8,8 +8,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Livro } from "@/lib/api";
-import { nomesDosAutores, ROTULO_SITUACAO_EXEMPLAR, statusDoExemplar, statusDoLivro } from "@/lib/dominio";
-import { formatarData } from "@/lib/formato";
+import { nomesDosAutores, ROTULO_SITUACAO_EXEMPLAR, statusDoExemplar } from "@/lib/dominio";
 
 export const Route = createFileRoute("/livros/$id")({
   head: () => ({
@@ -25,7 +24,7 @@ export const Route = createFileRoute("/livros/$id")({
 
 function DetalheLivro() {
   const { id } = Route.useParams();
-  const livro = useQuery({ queryKey: ["livro", id], queryFn: () => api.livros.obter(id) });
+  const livro = useQuery({ queryKey: ["livro", id], queryFn: () => api.livros.obter(Number(id)) });
 
   return (
     <LayoutPublico>
@@ -57,20 +56,14 @@ function DetalheLivro() {
 }
 
 function ConteudoLivro({ livro }: { livro: Livro }) {
-  const status = statusDoLivro(livro);
+  const status = livro.status;
   const autores = nomesDosAutores(livro);
-  const exemplares = livro.exemplares ?? [];
-  const proxima =
-    livro.proxima_devolucao_prevista ??
-    exemplares
-      .map((e) => e.data_prevista_devolucao)
-      .filter((d): d is string => !!d)
-      .sort()[0];
+  const exemplares = livro.exemplares;
 
   const dados: [string, string | number | null | undefined][] = [
     ["Autor(es)", autores || null],
     ["Editora", livro.editora],
-    ["Ano", livro.ano],
+    ["Ano", livro.ano_publicacao],
     ["ISBN", livro.isbn],
     ["Categoria", livro.categoria?.nome],
   ];
@@ -82,12 +75,6 @@ function ConteudoLivro({ livro }: { livro: Livro }) {
         {autores && <p className="text-lg text-muted-foreground">{autores}</p>}
         <div className="flex flex-wrap items-center gap-3">
           <StatusBadge status={status} className="px-3 py-1 text-sm" />
-          {status !== "DISPONIVEL" && proxima && (
-            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CalendarClock className="size-4" aria-hidden="true" />
-              Devolução prevista do próximo exemplar: <strong className="font-medium text-foreground">{formatarData(proxima)}</strong>
-            </span>
-          )}
         </div>
       </header>
 
@@ -119,7 +106,6 @@ function ConteudoLivro({ livro }: { livro: Livro }) {
                   <TableHead>Código</TableHead>
                   <TableHead>Situação</TableHead>
                   <TableHead>Disponibilidade</TableHead>
-                  <TableHead className="hidden sm:table-cell">Devolução prevista</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,9 +115,6 @@ function ConteudoLivro({ livro }: { livro: Livro }) {
                     <TableCell>{ROTULO_SITUACAO_EXEMPLAR[e.situacao] ?? e.situacao}</TableCell>
                     <TableCell>
                       <StatusBadge status={statusDoExemplar(e)} />
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell tabular">
-                      {e.data_prevista_devolucao ? formatarData(e.data_prevista_devolucao) : "—"}
                     </TableCell>
                   </TableRow>
                 ))}

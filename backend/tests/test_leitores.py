@@ -9,7 +9,7 @@ def test_documento_e_cifrado_no_banco_e_exibido_na_api(client, gestor, db):
     resposta = client.post("/api/leitores", json={"nome": "Davi Rocha", "documento": "123.456.789-00"}, headers=gestor)
     assert resposta.status_code == 201
     leitor = resposta.json()
-    assert leitor["documento"] == "12345678900"
+    assert leitor["documento"] == "********900"  # mascarado na API
 
     registro = db.get(Leitor, leitor["id"])
     assert "12345678900" not in registro.documento_cifrado

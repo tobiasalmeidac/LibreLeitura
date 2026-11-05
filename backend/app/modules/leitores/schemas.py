@@ -39,7 +39,7 @@ class LeitorSaida(BaseModel):
     nome: str
     email: str | None
     telefone: str | None
-    documento: str | None  # já decifrado, só gestores têm acesso a esta rota
+    documento: str | None  # mascarado (ex.: "*****678"); o valor completo nunca sai da API
     ativo: bool
     possui_acesso: bool    # se o leitor tem login no sistema
     criado_em: datetime

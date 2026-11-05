@@ -23,15 +23,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDebounce } from "@/hooks/use-debounce";
-import { api, type Emprestimo, type Exemplar, type Leitor } from "@/lib/api";
+import { api, type Emprestimo, type ExemplarComLivro, type Leitor } from "@/lib/api";
 import { invalidarCirculacao } from "@/lib/consultas";
 import {
-  codigoDoEmprestimo,
-  diasDeAtraso,
-  emprestimosAtivosDoLeitor,
-  leitorTemAtraso,
-  nomeDoLeitor,
-  tituloDoEmprestimo,
   tituloDoExemplar,
 } from "@/lib/dominio";
 import { formatarData, formatarNumero, pluralDias } from "@/lib/formato";
@@ -125,7 +119,7 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
   const [textoLeitor, setTextoLeitor] = useState("");
   const [leitorSel, setLeitorSel] = useState<Leitor | null>(null);
   const [textoExemplar, setTextoExemplar] = useState("");
-  const [exemplar, setExemplar] = useState<Exemplar | null>(null);
+  const [exemplar, setExemplar] = useState<ExemplarComLivro | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [buscandoCodigo, setBuscandoCodigo] = useState(false);
   const [ultimo, setUltimo] = useState<{ titulo: string; codigo: string; leitor: string; prevista: string } | null>(null);
@@ -139,7 +133,7 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
   const buscaLeitor = useDebounce(textoLeitor.trim(), 250);
   const leitores = useQuery({
     queryKey: ["leitores", "busca", buscaLeitor],
-    queryFn: ({ signal }) => api.leitores.listar({ busca: buscaLeitor, limite: 8, deslocamento: 0 }, signal),
+    queryFn: ({ signal }) => api.leitores.listar(buscaLeitor, 8, 0),
     enabled: !leitorSel && buscaLeitor.length >= 2,
     staleTime: 30_000,
   });
@@ -151,7 +145,7 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
     enabled: !!leitorSel,
   });
   const leitor = leitorSel ? { ...leitorSel, ...(detalheLeitor.data ?? {}) } : null;
-  const bloqueado = !!leitor?.bloqueado;
+  const bloqueado = leitor ? !leitor.ativo : false;
 
   const buscaExemplar = useDebounce(textoExemplar.trim(), 200);
   const exemplares = useQuery({
@@ -179,7 +173,7 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
     focar(leitorRef);
   }
 
-  function selecionarExemplar(e: Exemplar) {
+  function selecionarExemplar(e: ExemplarComLivro) {
     setExemplar(e);
     setTextoExemplar(e.codigo);
     setErro(null);
@@ -194,10 +188,10 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
   }
 
   /** Enter no campo do exemplar: o leitor de código de barras digita o código + Enter. */
-  async function aoEnterExemplar(texto: string, destacada: Exemplar | undefined) {
+  async function aoEnterExemplar(texto: string, destacada: ExemplarComLivro | undefined) {
     const codigo = texto.trim();
     if (!codigo) return;
-    const igual = (e: Exemplar) => e.codigo.toLowerCase() === codigo.toLowerCase();
+    const igual = (e: ExemplarComLivro) => e.codigo.toLowerCase() === codigo.toLowerCase();
     const jaCarregado = (exemplares.data ?? []).find(igual);
     if (jaCarregado) return selecionarExemplar(jaCarregado);
     if (destacada && buscaExemplar === codigo) return selecionarExemplar(destacada);
@@ -224,7 +218,7 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
     onSuccess: (r: Emprestimo | undefined) => {
       toast.success("Empréstimo registrado");
       setUltimo({
-        titulo: r ? tituloDoEmprestimo(r) !== "—" ? tituloDoEmprestimo(r) : tituloDoExemplar(exemplar!) : tituloDoExemplar(exemplar!),
+        titulo: r?.livro_titulo ?? exemplar!.livro_titulo,
         codigo: exemplar!.codigo,
         leitor: leitor!.nome,
         prevista: r?.data_prevista ?? "",
@@ -241,8 +235,6 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
     },
   });
 
-  const ativos = leitor ? emprestimosAtivosDoLeitor(leitor) : undefined;
-  const atraso = leitor ? leitorTemAtraso(leitor) : undefined;
 
   return (
     <div className="space-y-4">
@@ -268,13 +260,11 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{l.nome}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {[l.matricula, l.email].filter(Boolean).join(" · ") || "—"}
-                  </p>
+                  <p className="truncate text-xs text-muted-foreground">{l.email ?? "—"}</p>
                 </div>
-                {l.bloqueado && (
+                {!l.ativo && (
                   <Etiqueta tom="perigo" icone={AlertTriangle}>
-                    Bloqueado
+                    Inativo
                   </Etiqueta>
                 )}
               </div>
@@ -288,21 +278,11 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
               </div>
               <div>
                 <p className="text-base font-semibold">{leitor.nome}</p>
-                <p className="text-sm text-muted-foreground">{[leitor.matricula, leitor.email].filter(Boolean).join(" · ") || "—"}</p>
+                <p className="text-sm text-muted-foreground">{leitor.email ?? "—"}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {ativos !== undefined && (
-                    <Etiqueta tom="info" icone={BookOpen}>
-                      {formatarNumero(ativos)} {ativos === 1 ? "empréstimo ativo" : "empréstimos ativos"}
-                    </Etiqueta>
-                  )}
-                  {atraso === true && (
+                  {!leitor.ativo && (
                     <Etiqueta tom="perigo" icone={AlertTriangle}>
-                      Possui atraso
-                    </Etiqueta>
-                  )}
-                  {atraso === false && (
-                    <Etiqueta tom="sucesso" icone={CheckCircle2}>
-                      Sem atrasos
+                      Inativo
                     </Etiqueta>
                   )}
                 </div>
@@ -313,7 +293,7 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
               Trocar leitor
             </Button>
             {bloqueado && (
-              <AlertaErro className="w-full" mensagem={leitor.motivo_bloqueio || "Leitor bloqueado para novos empréstimos."} />
+              <AlertaErro className="w-full" mensagem="Leitor inativo: não pode fazer novos empréstimos." />
             )}
           </div>
         )}
@@ -322,7 +302,7 @@ function AbaEmprestimo({ registrarFoco }: { registrarFoco: (f: () => void) => vo
       {/* Passo 2 — Exemplar */}
       <Passo numero={2} titulo="Exemplar" ativo={!!leitor && !bloqueado && !exemplar} concluido={!!exemplar}>
         {!exemplar ? (
-          <Autocomplete<Exemplar>
+          <Autocomplete<ExemplarComLivro>
             id="balcao-exemplar"
             rotulo="Código do exemplar ou título"
             valor={textoExemplar}
@@ -439,12 +419,12 @@ function AbaDevolucao({ inputRef, ativa }: { inputRef: React.RefObject<HTMLInput
     mutationFn: (c: string) => api.devolucoes.registrar(c),
     onSuccess: (r, c) => {
       const e = (r ?? {}) as Emprestimo;
-      const atraso = e.data_prevista ? diasDeAtraso({ ...e, data_devolucao: null }) : (e.dias_atraso ?? 0);
+      const atraso = e.dias_atraso;
       setResultado({
-        titulo: tituloDoEmprestimo(e),
-        codigo: codigoDoEmprestimo(e) !== "—" ? codigoDoEmprestimo(e) : c,
-        leitor: nomeDoLeitor(e),
-        atraso: e.atrasado && atraso === 0 ? 1 : atraso,
+        titulo: e.livro_titulo,
+        codigo: e.exemplar_codigo || c,
+        leitor: e.leitor_nome,
+        atraso,
       });
       setErro(null);
       setCodigo("");

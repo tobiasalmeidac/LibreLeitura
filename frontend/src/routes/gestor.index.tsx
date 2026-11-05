@@ -5,13 +5,11 @@ import { AlertTriangle, ArrowLeftRight, Clock, Mail, Phone, RotateCw } from "luc
 import { BotaoDevolver } from "@/components/emprestimos/DevolverEmprestimo";
 import { CarregandoLinhas, EstadoErro, EstadoVazio } from "@/components/Estados";
 import { CabecalhoPagina } from "@/components/layout/LayoutGestor";
-import { textoPrazo } from "@/components/SituacaoEmprestimo";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { Emprestimo } from "@/lib/api";
+import type { ItemPendencia } from "@/lib/api";
 import { api } from "@/lib/api";
-import { codigoDoEmprestimo, diasDeAtraso, nomeDoLeitor, tituloDoEmprestimo } from "@/lib/dominio";
-import { formatarData, formatarNumero } from "@/lib/formato";
+import { formatarData, formatarNumero, pluralDias } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/gestor/")({
@@ -29,7 +27,7 @@ export const Route = createFileRoute("/gestor/")({
 function Painel() {
   const consulta = useQuery({ queryKey: ["pendencias"], queryFn: api.alertas.pendencias, refetchInterval: 60_000 });
   const p = consulta.data;
-  const rotuloAVencer = p?.diasAviso != null ? `Vencem em ${formatarNumero(p.diasAviso)} ${p.diasAviso === 1 ? "dia" : "dias"}` : "A vencer";
+  const rotuloAVencer = p ? `Vencem em ${formatarNumero(p.dias_aviso)} ${p.dias_aviso === 1 ? "dia" : "dias"}` : "A vencer";
 
   return (
     <div className="space-y-8">
@@ -66,11 +64,9 @@ function Painel() {
       ) : (
         <>
           <section aria-label="Totais" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <CartaoTotal rotulo="Atrasados" valor={p!.totalAtrasados} tom="perigo" icone={AlertTriangle} />
-            <CartaoTotal rotulo={rotuloAVencer} valor={p!.totalAVencer} tom="atencao" icone={Clock} />
-            {p!.outrosTotais.map((t) => (
-              <CartaoTotal key={t.chave} rotulo={t.rotulo} valor={t.valor} tom="neutro" />
-            ))}
+            <CartaoTotal rotulo="Atrasados" valor={p!.resumo.atrasados} tom="perigo" icone={AlertTriangle} />
+            <CartaoTotal rotulo={rotuloAVencer} valor={p!.resumo.a_vencer} tom="atencao" icone={Clock} />
+            <CartaoTotal rotulo="Em aberto" valor={p!.resumo.em_aberto} tom="neutro" />
           </section>
 
           <TabelaPendencias
@@ -80,7 +76,7 @@ function Painel() {
             colunaPrazo="Atraso"
             atrasados
           />
-          <TabelaPendencias titulo="A vencer" itens={p!.aVencer} vazio="Nenhum empréstimo a vencer" colunaPrazo="Faltam" />
+          <TabelaPendencias titulo="A vencer" itens={p!.a_vencer} vazio="Nenhum empréstimo a vencer" colunaPrazo="Faltam" />
         </>
       )}
     </div>
@@ -121,6 +117,12 @@ function CartaoTotal({
   );
 }
 
+function textoPrazoPendencia(e: ItemPendencia, atrasado: boolean): string {
+  if (atrasado) return `Atrasado há ${pluralDias(e.dias_atraso)}`;
+  if (e.dias_para_vencer <= 0) return "Vence hoje";
+  return `Faltam ${pluralDias(e.dias_para_vencer)}`;
+}
+
 function TabelaPendencias({
   titulo,
   itens,
@@ -129,7 +131,7 @@ function TabelaPendencias({
   atrasados,
 }: {
   titulo: string;
-  itens: Emprestimo[];
+  itens: ItemPendencia[];
   vazio: string;
   colunaPrazo: string;
   atrasados?: boolean;
@@ -162,11 +164,11 @@ function TabelaPendencias({
             </TableHeader>
             <TableBody>
               {itens.map((e) => {
-                const email = e.leitor?.email;
-                const telefone = e.leitor?.telefone;
+                const email = e.leitor_email;
+                const telefone = e.leitor_telefone;
                 return (
-                  <TableRow key={String(e.id)}>
-                    <TableCell className="py-2 font-medium">{nomeDoLeitor(e)}</TableCell>
+                  <TableRow key={String(e.emprestimo_id)}>
+                    <TableCell className="py-2 font-medium">{e.leitor_nome}</TableCell>
                     <TableCell className="py-2">
                       {email ? (
                         <a href={`mailto:${email}`} className="inline-flex items-center gap-1 text-primary underline-offset-2 hover:underline">
@@ -190,22 +192,30 @@ function TabelaPendencias({
                         "—"
                       )}
                     </TableCell>
-                    <TableCell className="py-2">{tituloDoEmprestimo(e)}</TableCell>
-                    <TableCell className="py-2 font-mono text-xs">{codigoDoEmprestimo(e)}</TableCell>
+                    <TableCell className="py-2">{e.livro_titulo}</TableCell>
+                    <TableCell className="py-2 font-mono text-xs">{e.exemplar_codigo}</TableCell>
                     <TableCell className="py-2 tabular">{formatarData(e.data_prevista)}</TableCell>
                     <TableCell
                       className={cn(
                         "py-2 font-medium whitespace-nowrap tabular",
-                        atrasados || diasDeAtraso(e) > 0 ? "text-danger-strong" : "text-warning-strong",
+                        atrasados ? "text-danger-strong" : "text-warning-strong",
                       )}
                     >
                       <span className="inline-flex items-center gap-1">
                         {atrasados ? <AlertTriangle className="size-3.5" aria-hidden="true" /> : <Clock className="size-3.5" aria-hidden="true" />}
-                        {textoPrazo(e)}
+                        {textoPrazoPendencia(e, !!atrasados)}
                       </span>
                     </TableCell>
                     <TableCell className="py-2 text-right">
-                      <BotaoDevolver emprestimo={e} rotulo="Registrar devolução" />
+                      <BotaoDevolver
+                        emprestimo={{
+                          id: e.emprestimo_id,
+                          livro_titulo: e.livro_titulo,
+                          exemplar_codigo: e.exemplar_codigo,
+                          leitor_nome: e.leitor_nome,
+                        }}
+                        rotulo="Registrar devolução"
+                      />
                     </TableCell>
                   </TableRow>
                 );

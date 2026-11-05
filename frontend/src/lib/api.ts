@@ -6,29 +6,35 @@
  * - O refresh token é um cookie httpOnly: usamos `credentials: "include"` sempre.
  * - Em 401, renovamos a sessão uma vez (POST /auth/refresh) e repetimos a requisição.
  *
- * Os formatos dos corpos e das respostas marcados com "CONFIRMAR NO SWAGGER"
- * foram deduzidos da especificação e devem ser conferidos em /api/docs.
+ * Os tipos abaixo espelham os schemas do OpenAPI do backend (openapi.json, gerado de app.openapi()).
+ * Se o backend mudar, regenere o arquivo e ajuste estes tipos.
  */
 
 /* ----------------------------------------------------------------------------
- * Tipos de domínio
+ * Tipos de domínio (espelham os schemas do backend)
  * ------------------------------------------------------------------------- */
 
-export type Id = number | string;
+export type Id = number;
 export type Papel = "GESTOR" | "LEITOR";
 export type StatusDisponibilidade = "DISPONIVEL" | "EMPRESTADO" | "INDISPONIVEL";
 export type SituacaoExemplar = "ATIVO" | "EXTRAVIADO" | "BAIXADO";
+/** Situação que a API devolve em cada empréstimo. */
+export type SituacaoEmprestimo = "EM_DIA" | "ATRASADO" | "DEVOLVIDO";
+/** Filtros aceitos em GET /emprestimos e GET /me/emprestimos. */
+export type FiltroEmprestimo = "EM_ABERTO" | "ATRASADO" | "A_VENCER" | "DEVOLVIDO";
 
 export interface Usuario {
   id: Id;
   nome: string;
   email: string;
   papel: Papel;
-  ativo?: boolean;
+  ativo: boolean;
+  criado_em: string;
 }
 
 export interface LoginResposta {
   access_token: string;
+  token_type: string;
   expira_em_segundos: number;
   usuario: Usuario;
 }
@@ -50,81 +56,74 @@ export interface Categoria {
   nome: string;
 }
 
-// CONFIRMAR NO SWAGGER: estrutura de Exemplar.
+/** ExemplarSaida: uma cópia física dentro de um livro. */
 export interface Exemplar {
   id: Id;
   codigo: string;
   situacao: SituacaoExemplar;
-  disponivel?: boolean;
-  data_prevista_devolucao?: string | null;
-  livro?: { id?: Id; titulo?: string; autores?: Autor[] } | null;
-  titulo?: string;
+  disponivel: boolean;
 }
 
-// CONFIRMAR NO SWAGGER: estrutura de Livro.
-export interface Livro {
+/** ExemplarComLivro: resultado de GET /exemplares (busca do balcão). */
+export interface ExemplarComLivro extends Exemplar {
+  livro_id: Id;
+  livro_titulo: string;
+}
+
+/** LivroResumo: item das listagens do catálogo e do acervo. */
+export interface LivroResumo {
   id: Id;
   titulo: string;
-  autores?: Autor[];
-  editora?: string | null;
-  ano?: number | null;
-  isbn?: string | null;
-  categoria?: Categoria | null;
-  status?: StatusDisponibilidade;
-  disponibilidade?: StatusDisponibilidade;
-  exemplares?: Exemplar[];
-  proxima_devolucao_prevista?: string | null;
+  isbn: string | null;
+  editora: string | null;
+  ano_publicacao: number | null;
+  categoria: Categoria | null;
+  autores: Autor[];
+  total_exemplares: number;
+  exemplares_disponiveis: number;
+  status: StatusDisponibilidade;
 }
 
-// CONFIRMAR NO SWAGGER: estrutura de Empréstimo.
+/** LivroDetalhe: LivroResumo + lista de exemplares. */
+export interface Livro extends LivroResumo {
+  exemplares: Exemplar[];
+}
+
+/** EmprestimoSaida. `data_devolucao` nulo = em aberto. */
 export interface Emprestimo {
   id: Id;
-  data_retirada: string;
+  leitor_id: Id;
+  leitor_nome: string;
+  exemplar_id: Id;
+  exemplar_codigo: string;
+  livro_id: Id;
+  livro_titulo: string;
+  data_saida: string;
   data_prevista: string;
-  data_devolucao?: string | null;
-  exemplar?: { id?: Id; codigo?: string; livro?: { id?: Id; titulo?: string } };
-  livro?: { id?: Id; titulo?: string };
-  codigo_exemplar?: string;
-  titulo?: string;
-  dias_atraso?: number;
-  dias_para_vencer?: number;
-  atrasado?: boolean;
-  situacao?: SituacaoEmprestimo;
-  leitor?: { id?: Id; nome?: string; email?: string | null; telefone?: string | null } | null;
-  leitor_nome?: string;
+  data_devolucao: string | null;
+  situacao: SituacaoEmprestimo;
+  dias_atraso: number;
 }
 
-export type SituacaoEmprestimo = "EM_ABERTO" | "ATRASADO" | "A_VENCER" | "DEVOLVIDO";
-
-// CONFIRMAR NO SWAGGER: estrutura de Leitor. O documento nunca é exibido em texto puro.
+/** LeitorSaida. O documento vem decifrado da API: não exibir em texto puro. */
 export interface Leitor {
   id: Id;
   nome: string;
-  email?: string | null;
-  telefone?: string | null;
-  matricula?: string | null;
-  documento?: string | null;
-  documento_mascarado?: string | null;
-  emprestimos_ativos?: number;
-  emprestimos_em_aberto?: number;
-  possui_atraso?: boolean;
-  tem_atraso?: boolean;
-  bloqueado?: boolean;
-  motivo_bloqueio?: string | null;
-  possui_acesso?: boolean;
-  tem_acesso?: boolean;
-  usuario_id?: Id | null;
-  emprestimos?: Emprestimo[];
+  email: string | null;
+  telefone: string | null;
+  documento: string | null;
+  ativo: boolean;
+  possui_acesso: boolean;
+  criado_em: string;
 }
 
 export interface DadosLeitor {
   nome: string;
   email?: string | null;
   telefone?: string | null;
-  documento?: string;
+  documento?: string | null;
 }
 
-// CONFIRMAR NO SWAGGER: nomes dos campos de configuração.
 export interface Configuracao {
   prazo_padrao_dias: number;
   max_emprestimos_por_leitor: number;
@@ -132,29 +131,39 @@ export interface Configuracao {
   dias_aviso_vencimento: number;
 }
 
-// CONFIRMAR NO SWAGGER: corpo de POST/PATCH /livros.
+/** LivroCriar. */
 export interface DadosLivro {
   titulo: string;
+  isbn?: string | null;
+  editora?: string | null;
+  ano_publicacao?: number | null;
+  categoria_id?: Id | null;
   autor_ids: Id[];
-  editora: string | null;
-  ano: number | null;
-  isbn: string | null;
-  categoria_id: Id | null;
+  quantidade_exemplares?: number;
 }
 
-export interface TotalPendencia {
-  chave: string;
-  rotulo: string;
-  valor: number;
+/** ItemPendencia: linha do painel de pendências. */
+export interface ItemPendencia {
+  emprestimo_id: Id;
+  leitor_id: Id;
+  leitor_nome: string;
+  leitor_email: string | null;
+  leitor_telefone: string | null;
+  livro_titulo: string;
+  exemplar_codigo: string;
+  data_saida: string;
+  data_prevista: string;
+  dias_atraso: number;
+  dias_para_vencer: number;
 }
 
-export interface Pendencias {
-  atrasados: Emprestimo[];
-  aVencer: Emprestimo[];
-  diasAviso: number | null;
-  totalAtrasados: number;
-  totalAVencer: number;
-  outrosTotais: TotalPendencia[];
+/** PainelPendencias: resposta de GET /alertas/pendencias. */
+export interface PainelPendencias {
+  data_referencia: string;
+  dias_aviso: number;
+  resumo: { em_aberto: number; atrasados: number; a_vencer: number };
+  atrasados: ItemPendencia[];
+  a_vencer: ItemPendencia[];
 }
 
 /* ----------------------------------------------------------------------------
@@ -340,249 +349,134 @@ export function comoLista<T>(r: T[] | Paginado<T> | undefined | null): T[] {
 }
 
 /* ----------------------------------------------------------------------------
- * Pendências: a resposta de GET /alertas/pendencias é normalizada aqui.
- * CONFIRMAR NO SWAGGER: nomes das listas e dos totais.
- * ------------------------------------------------------------------------- */
-
-const ROTULOS_TOTAIS: Record<string, string> = {
-  em_aberto: "Em aberto",
-  emprestimos_em_aberto: "Empréstimos em aberto",
-  total_em_aberto: "Em aberto",
-  leitores_com_atraso: "Leitores com atraso",
-  leitores_bloqueados: "Leitores bloqueados",
-  devolvidos_hoje: "Devolvidos hoje",
-  emprestimos_hoje: "Empréstimos hoje",
-  exemplares_emprestados: "Exemplares emprestados",
-  exemplares_disponiveis: "Exemplares disponíveis",
-  total_leitores: "Leitores",
-  total_livros: "Livros",
-  total_exemplares: "Exemplares",
-};
-
-const CHAVES_PRINCIPAIS = new Set([
-  "atrasados",
-  "a_vencer",
-  "vencendo",
-  "total_atrasados",
-  "total_a_vencer",
-  "qtd_atrasados",
-  "qtd_a_vencer",
-  "dias_aviso",
-  "dias_aviso_vencimento",
-]);
-
-function rotuloDoTotal(chave: string): string {
-  const conhecido = ROTULOS_TOTAIS[chave];
-  if (conhecido) return conhecido;
-  const texto = chave.replace(/^(total|qtd)_/, "").replace(/_/g, " ");
-  return texto.charAt(0).toUpperCase() + texto.slice(1);
-}
-
-function numero(v: unknown): number | null {
-  return typeof v === "number" && Number.isFinite(v) ? v : null;
-}
-
-export function normalizarPendencias(bruto: unknown): Pendencias {
-  const r = (bruto ?? {}) as Record<string, unknown>;
-  const listaOuTotal = (v: unknown): { lista: Emprestimo[]; total: number | null } => {
-    if (Array.isArray(v)) return { lista: v as Emprestimo[], total: null };
-    if (v && typeof v === "object" && Array.isArray((v as Paginado<Emprestimo>).itens)) {
-      const p = v as Paginado<Emprestimo>;
-      return { lista: p.itens, total: numero(p.total) };
-    }
-    return { lista: [], total: null };
-  };
-  const atrasados = listaOuTotal(r["atrasados"]);
-  const aVencer = listaOuTotal(r["a_vencer"] ?? r["vencendo"]);
-  const totais = (r["totais"] && typeof r["totais"] === "object" ? r["totais"] : {}) as Record<string, unknown>;
-
-  const outros: TotalPendencia[] = [];
-  for (const fonte of [r, totais]) {
-    for (const [chave, valor] of Object.entries(fonte)) {
-      const n = numero(valor);
-      if (n === null || CHAVES_PRINCIPAIS.has(chave) || chave === "totais") continue;
-      if (outros.some((o) => o.chave === chave)) continue;
-      outros.push({ chave, rotulo: rotuloDoTotal(chave), valor: n });
-    }
-  }
-
-  return {
-    atrasados: atrasados.lista,
-    aVencer: aVencer.lista,
-    diasAviso: numero(r["dias_aviso"]) ?? numero(r["dias_aviso_vencimento"]) ?? numero(totais["dias_aviso"]),
-    totalAtrasados:
-      numero(r["total_atrasados"]) ?? numero(r["qtd_atrasados"]) ?? numero(totais["atrasados"]) ?? atrasados.total ?? atrasados.lista.length,
-    totalAVencer:
-      numero(r["total_a_vencer"]) ?? numero(r["qtd_a_vencer"]) ?? numero(totais["a_vencer"]) ?? aVencer.total ?? aVencer.lista.length,
-    outrosTotais: outros,
-  };
-}
-
-/* ----------------------------------------------------------------------------
- * Endpoints (somente os da seção 6 da especificação)
+ * Endpoints (rotas da seção 6 da especificação; campos conforme openapi.json)
  * ------------------------------------------------------------------------- */
 
 export interface FiltrosLivros {
   busca?: string | undefined;
-  categoriaId?: string | undefined;
-  status?: StatusDisponibilidade | undefined;
+  categoriaId?: Id | undefined;
+  autorId?: Id | undefined;
+  somenteDisponiveis?: boolean | undefined;
   limite: number;
   deslocamento: number;
 }
 
 export interface FiltrosEmprestimos {
-  situacao?: SituacaoEmprestimo | undefined;
-  busca?: string | undefined;
+  situacao?: FiltroEmprestimo | undefined;
   leitorId?: Id | undefined;
   limite: number;
   deslocamento: number;
 }
-
-// CONFIRMAR NO SWAGGER: nomes dos parâmetros de busca/filtro de GET /livros.
-const PARAMETROS_LIVROS = { busca: "q", categoria: "categoria_id", status: "status" } as const;
-// CONFIRMAR NO SWAGGER: parâmetros de busca de GET /emprestimos.
-const PARAMETROS_EMPRESTIMOS = { busca: "q", leitor: "leitor_id" } as const;
-// CONFIRMAR NO SWAGGER: nome do campo do código em POST /devolucoes.
-const CAMPO_CODIGO_DEVOLUCAO = "codigo_exemplar";
 
 const seg = (id: Id) => encodeURIComponent(String(id));
 
 export const api = {
   auth: {
     async login(email: string, senha: string) {
-      const r = await requisicao<LoginResposta>("/auth/login", {
-        method: "POST",
-        body: { email, senha },
-        renovar: false,
-      });
-      accessToken = r.access_token;
+      const r = await requisicao<LoginResposta>("/auth/login", { method: "POST", body: { email, senha }, renovar: false });
+      sessao.definirToken(r.access_token);
       return r;
     },
     async logout() {
       try {
         await requisicao<void>("/auth/logout", { method: "POST", renovar: false });
       } finally {
-        accessToken = null;
+        sessao.limpar();
       }
     },
   },
 
   usuarios: {
     me: () => requisicao<Usuario>("/usuarios/me"),
-    // CONFIRMAR NO SWAGGER: nomes dos campos do corpo.
     trocarSenha: (senhaAtual: string, novaSenha: string) =>
       requisicao<void>("/usuarios/me/senha", {
         method: "PUT",
         body: { senha_atual: senhaAtual, nova_senha: novaSenha },
       }),
     async listar(limite: number, deslocamento: number) {
-      const r = await requisicao<Paginado<Usuario> | Usuario[]>("/usuarios", { query: { limite, deslocamento } });
-      return comoPaginado(r, limite, deslocamento);
+      const r = await requisicao<Paginado<Usuario>>("/usuarios", { query: { limite, deslocamento } });
+      return r;
     },
-    // CONFIRMAR NO SWAGGER: corpo de POST /usuarios.
     criar: (d: { nome: string; email: string; senha: string }) =>
-      requisicao<Usuario>("/usuarios", { method: "POST", body: { ...d, papel: "GESTOR" } }),
-    atualizar: (id: Id, d: { ativo?: boolean; nome?: string }) =>
+      requisicao<Usuario>("/usuarios", { method: "POST", body: d }),
+    atualizar: (id: Id, d: { nome?: string; email?: string; ativo?: boolean }) =>
       requisicao<Usuario>(`/usuarios/${seg(id)}`, { method: "PATCH", body: d }),
   },
 
   leitores: {
-    async listar(f: { busca?: string | undefined; limite: number; deslocamento: number }, signal?: AbortSignal) {
-      const r = await requisicao<Paginado<Leitor> | Leitor[]>("/leitores", {
-        query: { q: f.busca, limite: f.limite, deslocamento: f.deslocamento },
-        signal,
-      });
-      return comoPaginado(r, f.limite, f.deslocamento);
-    },
+    listar: (q: string | undefined, limite: number, deslocamento: number, ativo?: boolean) =>
+      requisicao<Paginado<Leitor>>("/leitores", { query: { q, ativo, limite, deslocamento } }),
     obter: (id: Id) => requisicao<Leitor>(`/leitores/${seg(id)}`),
     criar: (d: DadosLeitor) => requisicao<Leitor>("/leitores", { method: "POST", body: d }),
-    atualizar: (id: Id, d: Partial<DadosLeitor>) =>
+    atualizar: (id: Id, d: Partial<DadosLeitor> & { ativo?: boolean }) =>
       requisicao<Leitor>(`/leitores/${seg(id)}`, { method: "PATCH", body: d }),
-    excluir: (id: Id) => requisicao<{ detail?: string } | undefined>(`/leitores/${seg(id)}`, { method: "DELETE" }),
-    // CONFIRMAR NO SWAGGER: corpo de POST /leitores/{id}/acesso.
-    criarAcesso: (id: Id, d: { email: string; senha: string }) =>
-      requisicao<unknown>(`/leitores/${seg(id)}/acesso`, { method: "POST", body: d }),
+    excluir: (id: Id) => requisicao<void>(`/leitores/${seg(id)}`, { method: "DELETE" }),
+    criarAcesso: (id: Id, d: { email?: string | null; senha: string }) =>
+      requisicao<Leitor>(`/leitores/${seg(id)}/acesso`, { method: "POST", body: d }),
   },
 
   livros: {
-    async listar(f: FiltrosLivros) {
-      const r = await requisicao<Paginado<Livro> | Livro[]>("/livros", {
+    listar: (f: FiltrosLivros) =>
+      requisicao<Paginado<LivroResumo>>("/livros", {
         query: {
-          [PARAMETROS_LIVROS.busca]: f.busca,
-          [PARAMETROS_LIVROS.categoria]: f.categoriaId,
-          [PARAMETROS_LIVROS.status]: f.status,
+          q: f.busca,
+          categoria_id: f.categoriaId,
+          autor_id: f.autorId,
+          somente_disponiveis: f.somenteDisponiveis ? true : undefined,
           limite: f.limite,
           deslocamento: f.deslocamento,
         },
-      });
-      return comoPaginado(r, f.limite, f.deslocamento);
-    },
+      }),
     obter: (id: Id) => requisicao<Livro>(`/livros/${seg(id)}`),
     criar: (d: DadosLivro) => requisicao<Livro>("/livros", { method: "POST", body: d }),
     atualizar: (id: Id, d: Partial<DadosLivro>) => requisicao<Livro>(`/livros/${seg(id)}`, { method: "PATCH", body: d }),
     excluir: (id: Id) => requisicao<void>(`/livros/${seg(id)}`, { method: "DELETE" }),
-    // CONFIRMAR NO SWAGGER: corpo de POST /livros/{id}/exemplares.
     adicionarExemplares: (id: Id, quantidade: number) =>
-      requisicao<Exemplar[] | unknown>(`/livros/${seg(id)}/exemplares`, { method: "POST", body: { quantidade } }),
+      requisicao<Livro>(`/livros/${seg(id)}/exemplares`, { method: "POST", body: { quantidade } }),
   },
 
   exemplares: {
-    async buscar(q: string, somenteDisponiveis: boolean, signal?: AbortSignal) {
-      const r = await requisicao<Paginado<Exemplar> | Exemplar[]>("/exemplares", {
+    buscar: (q: string, somenteDisponiveis: boolean, signal?: AbortSignal) =>
+      requisicao<Paginado<ExemplarComLivro>>("/exemplares", {
         query: { q, somente_disponiveis: somenteDisponiveis ? true : undefined, limite: 10, deslocamento: 0 },
         signal,
-      });
-      return comoLista(r);
-    },
-    atualizar: (id: Id, d: { situacao: SituacaoExemplar }) =>
-      requisicao<Exemplar>(`/exemplares/${seg(id)}`, { method: "PATCH", body: d }),
+      }).then((r) => r.itens),
+    atualizar: (id: Id, situacao: SituacaoExemplar) =>
+      requisicao<ExemplarComLivro>(`/exemplares/${seg(id)}`, { method: "PATCH", body: { situacao } }),
   },
 
   categorias: {
-    async listar() {
-      return comoLista(await requisicao<Categoria[] | Paginado<Categoria>>("/categorias"));
-    },
+    listar: () => requisicao<Categoria[]>("/categorias"),
     criar: (nome: string) => requisicao<Categoria>("/categorias", { method: "POST", body: { nome } }),
     atualizar: (id: Id, nome: string) => requisicao<Categoria>(`/categorias/${seg(id)}`, { method: "PUT", body: { nome } }),
     excluir: (id: Id) => requisicao<void>(`/categorias/${seg(id)}`, { method: "DELETE" }),
   },
 
   autores: {
-    async listar() {
-      return comoLista(await requisicao<Autor[] | Paginado<Autor>>("/autores"));
-    },
+    listar: (q: string | undefined, limite: number, deslocamento: number) =>
+      requisicao<Paginado<Autor>>("/autores", { query: { q, limite, deslocamento } }),
     criar: (nome: string) => requisicao<Autor>("/autores", { method: "POST", body: { nome } }),
     atualizar: (id: Id, nome: string) => requisicao<Autor>(`/autores/${seg(id)}`, { method: "PUT", body: { nome } }),
     excluir: (id: Id) => requisicao<void>(`/autores/${seg(id)}`, { method: "DELETE" }),
   },
 
   emprestimos: {
-    async listar(f: FiltrosEmprestimos) {
-      const r = await requisicao<Paginado<Emprestimo> | Emprestimo[]>("/emprestimos", {
-        query: {
-          situacao: f.situacao,
-          [PARAMETROS_EMPRESTIMOS.busca]: f.busca,
-          [PARAMETROS_EMPRESTIMOS.leitor]: f.leitorId,
-          limite: f.limite,
-          deslocamento: f.deslocamento,
-        },
-      });
-      return comoPaginado(r, f.limite, f.deslocamento);
-    },
+    listar: (f: FiltrosEmprestimos) =>
+      requisicao<Paginado<Emprestimo>>("/emprestimos", {
+        query: { situacao: f.situacao, leitor_id: f.leitorId, limite: f.limite, deslocamento: f.deslocamento },
+      }),
     registrar: (leitorId: Id, exemplarId: Id) =>
       requisicao<Emprestimo>("/emprestimos", { method: "POST", body: { leitor_id: leitorId, exemplar_id: exemplarId } }),
     devolver: (id: Id) => requisicao<Emprestimo>(`/emprestimos/${seg(id)}/devolucao`, { method: "POST" }),
   },
 
   devolucoes: {
-    registrar: (codigo: string) =>
-      requisicao<Emprestimo>("/devolucoes", { method: "POST", body: { [CAMPO_CODIGO_DEVOLUCAO]: codigo } }),
+    registrar: (codigoExemplar: string) =>
+      requisicao<Emprestimo>("/devolucoes", { method: "POST", body: { codigo_exemplar: codigoExemplar } }),
   },
 
   alertas: {
-    async pendencias() {
-      return normalizarPendencias(await requisicao<unknown>("/alertas/pendencias"));
-    },
+    pendencias: () => requisicao<PainelPendencias>("/alertas/pendencias"),
   },
 
   configuracao: {
@@ -591,11 +485,9 @@ export const api = {
   },
 
   me: {
-    async emprestimos(limite: number, deslocamento: number) {
-      const r = await requisicao<Paginado<Emprestimo> | Emprestimo[]>("/me/emprestimos", {
-        query: { limite, deslocamento },
-      });
-      return comoPaginado(r, limite, deslocamento);
-    },
+    emprestimos: (f: { situacao?: FiltroEmprestimo | undefined; limite: number; deslocamento: number }) =>
+      requisicao<Paginado<Emprestimo>>("/me/emprestimos", {
+        query: { situacao: f.situacao, limite: f.limite, deslocamento: f.deslocamento },
+      }),
   },
 };
