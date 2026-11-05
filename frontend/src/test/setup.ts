@@ -36,3 +36,11 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// Radix (Switch, Select, Tabs) usa ResizeObserver, que o jsdom não implementa.
+class ResizeObserverFalso {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+Object.defineProperty(window, "ResizeObserver", { value: ResizeObserverFalso, writable: true });
